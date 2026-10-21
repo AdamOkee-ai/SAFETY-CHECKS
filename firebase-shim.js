@@ -88,8 +88,17 @@ async function roleOf(user) {
   if (!verified) return 'operative';
   const email = user.email.toLowerCase();
   if (OWNERS.includes(email)) return 'supervisor';
-  try { const s = await fb.getDoc(fb.doc(fs, 'members', email)); return s.exists() && s.data().role === 'supervisor' ? 'supervisor' : 'operative'; }
-  catch (e) { try { return localStorage.getItem('ssc.role.' + email) || 'operative'; } catch (x) { return 'operative'; } }
+  try {
+    const s = await fb.getDoc(fb.doc(fs, 'members', email));
+    if (s.exists() && s.data().role === 'supervisor') return 'supervisor';
+    // owners are listed only in the Firestore rules: a supervisor-only read tells us
+    await fb.getDocs(fb.query(fb.collection(fs, 'members'), fb.limit(1)));
+    return 'supervisor';
+  } catch (e) { if (e && e.code === 'permission-denied') return 'operative'; throw e; }
+}
+async function roleOfSafe(user) {
+  try { return await roleOf(user); }
+  catch (e) { try { return localStorage.getItem('ssc.role.' + (user.email || '').toLowerCase()) || 'operative'; } catch (x) { return 'operative'; } }
 }
 
 /* ---------- the backend the app talks to ---------- */
@@ -135,7 +144,7 @@ fb.onAuthStateChanged(auth, async user => {
   const pwd = user.providerData.some(p => p.providerId === 'password');
   if (pwd && !user.emailVerified) { verifyScreen(user); return; }
   started = true;
-  const role = await roleOf(user);
+  const role = await roleOfSafe(user);
   if (!user.isAnonymous) { try { localStorage.setItem('ssc.role.' + user.email.toLowerCase(), role); } catch (e) {} }
   if (!user.isAnonymous && role !== 'supervisor') {
     showGate('<h2>Not a supervisor yet</h2><p>You are signed in as <b>' + esc(user.email) + '</b>, but this address has not been made a supervisor. Ask an owner to add it under Site settings → Supervisors.</p><button class="gbtn" type="button" id="gOut">Back to the forms</button>');

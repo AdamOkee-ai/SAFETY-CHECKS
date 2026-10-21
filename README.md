@@ -30,7 +30,7 @@ OKEE's daily MEWP inspection and harness check app, with a site tracker for supe
    - **Email/Password** (supervisors without Google)
 4. **Authentication → Settings → Authorized domains**: add `YOUR-ORG.github.io`.
 5. **Project settings (gear) → Your apps → Web app (`</>`)**: register an app, then copy the `firebaseConfig` values into `config.js`.
-6. In `config.js`, put your own email in `owners`. Put the same email (lower case) in `firebase/firestore.rules` in place of `you@example.com`.
+6. In the rules (next step), put the owner's email (lower case) in place of `you@example.com`. Keep the email out of `config.js`, because this repository is public. The app works out who the owners are from the rules.
 7. **Firestore Database → Rules**: paste in the whole of `firebase/firestore.rules`, then click **Publish**.
 
 ### 2. GitHub Pages
@@ -39,7 +39,7 @@ OKEE's daily MEWP inspection and harness check app, with a site tracker for supe
 3. Open `https://YOUR-ORG.github.io/SAFETY-CHECKS/` on a phone, then use **Add to Home Screen**.
 
 ### 3. First supervisor steps
-1. On the home screen, tap **Supervisor ›** and sign in with the owner email.
+1. On the home screen, tap **Supervisor ›** and sign in with the owner's Google account.
 2. **Site settings:** enter the project, project no., location, contractor, drawing ref and plant/system ref. These fill in automatically for everyone.
 3. **Site list:** add the people (use **Add many at once** and paste `Name, Company` lines from a spreadsheet), then add the MEWPs on site. Untick *Needs a daily harness check* for anyone who doesn't work at height.
 4. **Site settings → Supervisors:** add other supervisors' emails.

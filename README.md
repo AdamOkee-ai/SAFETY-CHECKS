@@ -47,6 +47,16 @@ OKEE's daily MEWP inspection and harness check app, with a site tracker for supe
 ### 4. SharePoint upload (optional, needs Power Automate Premium)
 The steps are in the app under **Site settings → SharePoint upload → How to set up the flow**. When the link is saved there, every phone uploads automatically. Without it, reports are still recorded on the tracker, and supervisors can download any PDF from there.
 
+## Daily report (automatic)
+Every night at 22:30 UTC (23:30 in summer, 22:30 in winter) a GitHub job (`.github/workflows/daily-report.yml`) makes a PDF of that day's site tracker. It saves the PDF on the tracker under **Daily reports** and sends it to SharePoint (`Safety/Daily Tracker Reports`) when the upload link is set in Site settings. Supervisors can also make one at any time with **Daily report (PDF)** on the tracker.
+
+One-off setup:
+1. Firebase console → Project settings → **Service accounts** → **Generate new private key**. A `.json` file downloads.
+2. GitHub repository → Settings → Secrets and variables → Actions → **New repository secret**. Name: `FIREBASE_SERVICE_ACCOUNT`. Value: the whole contents of that `.json` file. Then delete the file from your computer.
+3. To test, go to Actions → **Daily tracker report** → Run workflow.
+
+GitHub pauses scheduled jobs in public repositories after 60 days with no changes. If that happens it emails you, and you can switch it back on under Actions.
+
 ## Using the tracker
 - **Not on site** removes a person from that day's count. **Not in use** does the same for a MEWP. **Mark site closed** removes everyone and everything for the day, for example on Sundays.
 - **Removing** someone from the site list keeps their past reports, and they stop counting from the next day.

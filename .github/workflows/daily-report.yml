@@ -1,0 +1,37 @@
+name: Daily tracker report
+
+on:
+  schedule:
+    # 22:30 UTC every day = 23:30 in summer (BST), 22:30 in winter (GMT)
+    - cron: '30 22 * * *'
+  workflow_dispatch:
+    inputs:
+      date:
+        description: 'Report date as YYYY-MM-DD (leave blank for today)'
+        required: false
+        default: ''
+
+permissions:
+  contents: read
+
+concurrency:
+  group: daily-report
+  cancel-in-progress: false
+
+jobs:
+  report:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Install report tools
+        run: npm install --no-save --no-package-lock --no-audit --no-fund firebase-admin@12.7.0 pdfmake@0.2.7
+      - name: Make the report and send it to SharePoint
+        run: node scripts/daily-report.js
+        env:
+          FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+          REPORT_DATE: ${{ github.event.inputs.date }}
+          TZ: Europe/London

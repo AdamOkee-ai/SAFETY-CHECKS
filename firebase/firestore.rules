@@ -51,6 +51,9 @@ service cloud.firestore {
       allow read, delete: if supervisor();
     }
 
+    // Daily tracker reports (made nightly by the GitHub job, or by a supervisor from the tracker).
+    match /dailyReports/{id} { allow read, write: if supervisor(); }
+
     // "Not on site", "Not in use" and "Site closed" marks.
     match /excused/{id} { allow read, write: if supervisor(); }
   }

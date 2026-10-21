@@ -287,7 +287,7 @@ async function claudeBackend() {
 
 /* ================= State ================= */
 let B = null;                         // backend
-const D = { people: [], mewps: [], config: {}, subs: [], excused: [], members: [], loaded: { people: false, mewps: false } };
+const D = { people: [], mewps: [], config: {}, subs: [], excused: [], members: [], daily: [], loaded: { people: false, mewps: false } };
 const PM = () => Object.fromEntries(D.people.map(p => [p.id, p]));
 const MM = () => Object.fromEntries(D.mewps.map(m => [m.id, m]));
 let view = "home";
@@ -501,32 +501,18 @@ function refreshBar() {
 }
 
 /* ================= Supervisor: tracker ================= */
-let subUnsub = null, exUnsub = null, subRange = "";
+let subUnsub = null, exUnsub = null, drUnsub = null, subRange = "";
 function ensureRange(date) {
   if (!isSup()) return;
   const from = iso(addDays(parseISO(date), -13)); const key = from + "|" + date;
   if (key === subRange) return; subRange = key;
-  subUnsub && subUnsub(); exUnsub && exUnsub();
+  subUnsub && subUnsub(); exUnsub && exUnsub(); drUnsub && drUnsub();
+  drUnsub = B.watch("dailyReports", [["date", ">=", from], ["date", "<=", date]], rows => { D.daily = rows.filter(r => !r.part); if (view === "tracker") rerenderKeepScroll(); }, e => console.warn("daily", e));
   subUnsub = B.watch("submissions", [["date", ">=", from], ["date", "<=", date]], rows => { D.subs = rows; if (["tracker", "home"].includes(view)) rerenderKeepScroll(); }, e => console.warn("subs", e));
   exUnsub = B.watch("excused", [["date", ">=", from], ["date", "<=", date]], rows => { D.excused = rows; if (["tracker", "home"].includes(view)) rerenderKeepScroll(); }, e => console.warn("excused", e));
 }
 function activeOn(x, date) { const end = endOf(date); return (x.at || 0) <= end && (x.active !== false || (x.inactiveAt && x.inactiveAt > end)); }
-function dayStatus(date) {
-  const ex = D.excused.filter(e => e.date === date);
-  const closed = ex.some(e => e.kind === "site");
-  const exP = new Set(ex.filter(e => e.kind === "person").map(e => e.refId)), exM = new Set(ex.filter(e => e.kind === "mewp").map(e => e.refId));
-  const subs = D.subs.filter(s => s.date === date);
-  const hSubs = subs.filter(s => s.type === "harness"), mSubs = subs.filter(s => s.type === "mewp");
-  const doneP = new Map(); hSubs.forEach(s => (s.personIds || []).forEach(pid => { if (!doneP.has(pid)) doneP.set(pid, []); doneP.get(pid).push(s); }));
-  const doneM = new Map(); mSubs.forEach(s => { if (!doneM.has(s.mewpId)) doneM.set(s.mewpId, []); doneM.get(s.mewpId).push(s); });
-  const expP = closed ? [] : D.people.filter(p => activeOn(p, date) && p.harness !== false && !exP.has(p.id) && !doneP.has(p.id));
-  const expM = closed ? [] : D.mewps.filter(m => activeOn(m, date) && !exM.has(m.id) && !doneM.has(m.id));
-  return {
-    closed, subs, fails: subs.reduce((a, s) => a + (s.failCount || 0), 0), notUploaded: subs.filter(s => !s.uploaded).length,
-    h: { done: [...doneP.entries()], missing: expP, excused: D.people.filter(p => exP.has(p.id)), total: doneP.size + expP.length },
-    m: { done: [...doneM.entries()], missing: expM, excused: D.mewps.filter(m => exM.has(m.id)), total: doneM.size + expM.length }
-  };
-}
+function dayStatus(date) { return SSCReport.dayStatus(D, date); }
 const ring = (done, total) => { const pct = total ? Math.round((done / total) * 100) : 100; return `<div class="meter ${done < total ? "short" : "full"}"><i style="width:${pct}%"></i></div>`; };
 function trackerView() {
   ensureRange(trackDate);
@@ -546,7 +532,7 @@ function trackerView() {
     <div class="stat"><span class="eyebrow">MEWP inspections</span><b>${st.m.done.length}<small> / ${st.m.total}</small></b>${ring(st.m.done.length, st.m.total)}<span class="muted">${st.m.missing.length ? st.m.missing.length + (st.m.missing.length === 1 ? " machine" : " machines") + " not done" : "All machines done"}</span></div>
   </div>
   <div class="statline"><span><b>${st.subs.length}</b> reports</span><span class="${st.fails ? "fbad" : ""}"><b>${st.fails}</b> failed checks</span>${flowUrl() ? `<span class="${st.notUploaded ? "fbad" : ""}"><b>${st.notUploaded}</b> not in SharePoint</span>` : ""}
-    <button type="button" class="chipbtn" data-act="csv">Download day (CSV)</button>${!st.closed ? `<button type="button" class="chipbtn" data-act="closed" data-v="1">Mark site closed</button>` : ""}</div>
+    <button type="button" class="chipbtn" data-act="csv">Download day (CSV)</button><button type="button" class="chipbtn" data-act="dailyreport">Daily report (PDF)</button>${!st.closed ? `<button type="button" class="chipbtn" data-act="closed" data-v="1">Mark site closed</button>` : ""}</div>
 
   <section class="card"><h2>Harness: not done <span class="count ${st.h.missing.length ? "bad" : ""}">${st.h.missing.length}</span></h2>
     ${st.h.missing.length ? `<p class="muted" style="margin:0;font-size:13px">If someone isn't on site today, tap Not on site so they stop counting as missing.</p><ul class="plist">${st.h.missing.map(p => `<li><span class="nm">${esc(p.name)}<small>${esc(p.company || "")}</small></span><button type="button" class="chipbtn" data-act="excuse" data-kind="person" data-id="${p.id}">Not on site</button></li>`).join("")}</ul>` : `<p class="ok" style="margin:0">${st.closed ? "Site closed." : "Nobody outstanding."}</p>`}
@@ -561,10 +547,39 @@ function trackerView() {
     ${st.m.done.length ? `<ul class="plist">${st.m.done.map(([mid, ss]) => `<li><span class="nm">${esc(mm[mid] ? mm[mid].label : ss[0].mewpLabel)}<small>Operator: ${esc(ss.map(s => s.operatorName).join(", "))}</small></span><span class="acts">${ss.map(subBtn).join("")}</span></li>`).join("")}</ul>` : `<p class="muted" style="margin:0">No MEWP inspections yet.</p>`}
   </section>
   ${st.h.excused.length || st.m.excused.length ? `<section class="card"><h2>Not on site / not in use</h2><ul class="plist">${st.h.excused.map(p => `<li><span class="nm">${esc(p.name)}<small>${esc(p.company || "")}</small></span><button type="button" class="chipbtn" data-act="unexcuse" data-kind="person" data-id="${p.id}">Undo</button></li>`).join("")}${st.m.excused.map(m => `<li><span class="nm">${esc(m.label)}</span><button type="button" class="chipbtn" data-act="unexcuse" data-kind="mewp" data-id="${m.id}">Undo</button></li>`).join("")}</ul></section>` : ""}
+  ${dailyReportsCard()}
   <section class="card"><h2>Last 14 days</h2><div class="tablewrap"><table class="hist"><thead><tr><th>Date</th><th>Harness</th><th>MEWP</th><th>Fails</th><th>Reports</th></tr></thead><tbody>
     ${hist.map(([d, s]) => `<tr data-date="${d}" class="${d === trackDate ? "sel" : ""}"><td>${T.en.days[dayIdx(d)]} ${fmt(d).slice(0, 5)}</td>${s.closed ? `<td colspan="2" class="muted">Site closed</td>` : `<td class="${s.h.missing.length ? "short" : ""}">${s.h.done.length}/${s.h.total}</td><td class="${s.m.missing.length ? "short" : ""}">${s.m.done.length}/${s.m.total}</td>`}<td class="${s.fails ? "short" : ""}">${s.fails}</td><td>${s.subs.length}</td></tr>`).join("")}
   </tbody></table></div><p class="muted" style="margin:0;font-size:12px">Tap a day to open it. Red means someone or something was missed.</p></section>
   <p class="foot">${outstanding ? outstanding + " outstanding on " + fmt(trackDate) : ""}</p>`;
+}
+
+function dailyReportsCard() {
+  const list = D.daily.slice().sort((a, b) => b.date.localeCompare(a.date));
+  return `<section class="card"><h2>Daily reports</h2>
+    <p class="muted" style="margin:0;font-size:13px">A PDF of the tracker is made automatically every night and sent to SharePoint${flowUrl() ? "" : " once the upload link is set in Site settings"}. Tap Daily report (PDF) above to make one now.</p>
+    ${list.length ? `<ul class="plist">${list.map(r => `<li><span class="nm">${T.en.days[dayIdx(r.date)]} ${fmt(r.date)}<small>${esc(r.by || "")} · ${r.at ? hhmm(r.at) : ""}${r.summary ? ` · harness ${r.summary.harnessDone}/${r.summary.harnessExpected} · MEWP ${r.summary.mewpDone}/${r.summary.mewpExpected}` : ""}</small></span><span class="acts">${flowUrl() ? (r.uploaded ? `<span class="chip on">In SharePoint</span>` : `<span class="chip w">Not in SharePoint</span>`) : ""}<button type="button" class="chipbtn" data-act="getdaily" data-id="${esc(r.id)}">PDF</button></span></li>`).join("")}</ul>` : `<p class="muted" style="margin:0">No daily reports in the last 14 days yet.</p>`}
+  </section>`;
+}
+async function makeDailyReport(date) {
+  sheet(`<p style="margin:0"><span class="spin"></span>Creating the daily report…</p>`);
+  try {
+    await loadPdfMake();
+    const data = { people: D.people, mewps: D.mewps, subs: D.subs, excused: D.excused };
+    const by = "Made by " + ((B.me && (B.me.name || B.me.email)) || "a supervisor");
+    const pdf = pdfMake.createPdf(SSCReport.dailyReportDoc(data, date, { config: D.config, logos: { okee: LOGO_OKEE, win: LOGO_WIN }, generatedBy: by, flowConfigured: !!flowUrl() }));
+    const blob = await new Promise(res => pdf.getBlob(res)), b64 = await new Promise(res => pdf.getBase64(res));
+    const fileName = SSCReport.fileName(date, D.config), summary = SSCReport.summary(data, date);
+    let uploaded = false;
+    if (flowUrl() && B.canUpload) {
+      try { const r = await fetch(flowUrl(), { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ fileName, folder: "Daily Tracker Reports", formType: "Daily Site Tracker Report", date, project: D.config.project || "", projectNo: D.config.projectNo || "", names: "", failCount: summary.fails, language: "en", submittedAt: new Date().toISOString(), contentBase64: b64 }) }); uploaded = r.ok; } catch (e) { uploaded = false; }
+    }
+    await savePdf(date, b64, { date, fileName, at: Date.now(), by, summary, uploaded, uid: B.uid }, "dailyReports");
+    sheet(`<h2>Daily report ready</h2><p class="muted" style="margin:0;word-break:break-all;font-size:13px">${esc(fileName)}</p>
+      ${flowUrl() && B.canUpload ? (uploaded ? `<div class="ok">✓ Sent to SharePoint (Safety/Daily Tracker Reports).</div>` : `<div class="alert">Couldn't reach SharePoint. The report is saved on the tracker; try again later.</div>`) : `<div class="info">Saved on the tracker. ${B.canUpload ? "Add the SharePoint upload link in Site settings to send it automatically." : "SharePoint upload works from the hosted app."}</div>`}
+      <div class="acts"><button class="primary" type="button" id="drDl">Download PDF</button><button class="ghost" type="button" data-close>Done</button></div>`);
+    $("#drDl").onclick = () => B.download(fileName, blob).catch(() => {});
+  } catch (err) { console.error(err); sheet(`<div class="alert">The daily report couldn't be created. Check the signal and try again.</div><div class="acts"><button class="ghost" type="button" data-close>Close</button></div>`); }
 }
 
 /* ================= Supervisor: site list ================= */
@@ -773,6 +788,8 @@ document.addEventListener("click", async e => {
   }
   if (a === "getpdf") { b.disabled = true; try { const p = await loadPdf(b.dataset.id); await B.download(p.fileName, b64Blob(p.data)); } catch (err) { if (!(err && err.code === "declined")) toast("Couldn't open that report. Check the signal."); } b.disabled = false; return; }
   if (a === "csv") { dayCsv(); return; }
+  if (a === "dailyreport") { makeDailyReport(trackDate); return; }
+  if (a === "getdaily") { b.disabled = true; try { const p = await loadPdf(b.dataset.id, "dailyReports"); await B.download(p.fileName, b64Blob(p.data)); } catch (err) { if (!(err && err.code === "declined")) toast("Couldn't open that report. Check the signal."); } b.disabled = false; return; }
   if (a === "addperson") {
     const name = $("#npName").value.trim().replace(/\s+/g, " "), company = $("#npCo").value.trim();
     if (name.length < 3) { $("#npName").classList.add("bad"); $("#npName").focus(); return; }
@@ -942,14 +959,14 @@ function resultSheet(up, rec) {
 }
 // PDFs are kept in the database in pieces small enough for any document limit
 const CHUNK = 180000;
-function savePdf(id, b64, meta) {
+function savePdf(id, b64, meta, coll = "pdfs") {
   const parts = Math.ceil(b64.length / CHUNK) || 1; const w = [];
-  for (let i = 0; i < parts; i++) w.push(B.set("pdfs", i ? id + "~" + i : id, i ? { data: b64.slice(i * CHUNK, (i + 1) * CHUNK), part: i, date: meta.date, uid: meta.uid } : { ...meta, data: b64.slice(0, CHUNK), parts }));
+  for (let i = 0; i < parts; i++) w.push(B.set(coll, i ? id + "~" + i : id, i ? { data: b64.slice(i * CHUNK, (i + 1) * CHUNK), part: i, date: meta.date, uid: meta.uid } : { ...meta, data: b64.slice(0, CHUNK), parts }));
   return Promise.all(w);
 }
-async function loadPdf(id) {
-  const head = await B.get("pdfs", id); if (!head) throw new Error("missing");
-  let data = head.data; for (let i = 1; i < (head.parts || 1); i++) { const p = await B.get("pdfs", id + "~" + i); if (!p) throw new Error("missing part"); data += p.data; }
+async function loadPdf(id, coll = "pdfs") {
+  const head = await B.get(coll, id); if (!head) throw new Error("missing");
+  let data = head.data; for (let i = 1; i < (head.parts || 1); i++) { const p = await B.get(coll, id + "~" + i); if (!p) throw new Error("missing part"); data += p.data; }
   return { fileName: head.fileName, data };
 }
 function b64Blob(b64) { const bin = atob(b64); const u = new Uint8Array(bin.length); for (let i = 0; i < bin.length; i++) u[i] = bin.charCodeAt(i); return new Blob([u], { type: "application/pdf" }); }

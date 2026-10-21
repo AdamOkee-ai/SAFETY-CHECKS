@@ -1,10 +1,11 @@
 /* Site Safety Checks offline layer: keeps the app, its libraries and fonts on the phone.
    Site data is cached by Firestore; this file never touches it. Bump VERSION on every change. */
-const VERSION = 'ssc-2026-10-21-6';
+const VERSION = 'ssc-2026-10-21-7';
 const SHELL = ['./', 'index.html', 'app.js', 'report.js', 'firebase-shim.js', 'config.js', 'manifest.webmanifest', 'icons/icon-192.png', 'icons/icon-512.png', 'icons/icon-180.png'];
 const FB = 'https://www.gstatic.com/firebasejs/10.14.1/';
 const CDN = [FB + 'firebase-app.js', FB + 'firebase-auth.js', FB + 'firebase-firestore.js',
   'https://cdn.jsdelivr.net/npm/pdfmake@0.2.7/build/pdfmake.min.js', 'https://cdn.jsdelivr.net/npm/pdfmake@0.2.7/build/vfs_fonts.js',
+  'https://cdn.jsdelivr.net/npm/pdfjs-dist@4.10.38/legacy/build/pdf.min.mjs', 'https://cdn.jsdelivr.net/npm/pdfjs-dist@4.10.38/legacy/build/pdf.worker.min.mjs',
   'https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600;700&family=Barlow+Condensed:wght@600;700&display=swap'];
 const RUNTIME = 'ssc-runtime';
 const CACHED_HOSTS = ['www.gstatic.com', 'cdn.jsdelivr.net', 'cdnjs.cloudflare.com', 'fonts.googleapis.com', 'fonts.gstatic.com'];

@@ -1,6 +1,6 @@
 /* Site Safety Checks offline layer: keeps the app, its libraries and fonts on the phone.
    Site data is cached by Firestore; this file never touches it. Bump VERSION on every change. */
-const VERSION = 'ssc-2026-10-21-4';
+const VERSION = 'ssc-2026-10-21-5';
 const SHELL = ['./', 'index.html', 'app.js', 'firebase-shim.js', 'config.js', 'manifest.webmanifest', 'icons/icon-192.png', 'icons/icon-512.png', 'icons/icon-180.png'];
 const FB = 'https://www.gstatic.com/firebasejs/10.14.1/';
 const CDN = [FB + 'firebase-app.js', FB + 'firebase-auth.js', FB + 'firebase-firestore.js',
@@ -32,7 +32,8 @@ self.addEventListener('fetch', e => {
     // the app: use the network when there is signal so updates arrive, the phone copy when there isn't
     e.respondWith((async () => {
       const c = await caches.open(VERSION);
-      try { const res = await fetch(req); if (res.ok) c.put(req.mode === 'navigate' ? 'index.html' : req, res.clone()); return res; }
+      // always ask GitHub for the latest copy (skips the browser's 10-minute cache), so updates show straight away
+      try { const res = await fetch(new Request(req.url, { cache: 'no-cache', credentials: 'same-origin' })); if (res.ok) c.put(req.mode === 'navigate' ? 'index.html' : new URL(req.url).pathname.split('/').pop() || 'index.html', res.clone()); return res; }
       catch (x) { return (await c.match(req.mode === 'navigate' ? 'index.html' : req, { ignoreSearch: true })) || (await c.match('index.html')) || Response.error(); }
     })());
     return;

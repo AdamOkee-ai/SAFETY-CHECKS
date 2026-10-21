@@ -435,7 +435,7 @@ function harnessCard(r, i) {
     ${gl("gHarness")}<div class="hgrid">${grp("harness")}</div>
     ${gl("gHardware")}<div class="hgrid">${grp("hardware")}</div>
     <div class="hwarn">${anyF ? `<div class="alert">${esc(t("harnessFail"))}</div>` : ""}${expired(r) ? `<div class="alert">${esc(t("expired"))}</div>` : ""}</div>
-    <div class="fields">${field(p + ".dateInspected", "dateInspected", "date", "", true)}${field(p + ".certDate", "certDate", "date", "", true)}${field(p + ".issueDate", "issueDate", "date", "", true)}${field(p + ".expiryDate", "expiryDate", "date", "", true)}</div>
+    <div class="fields">${field(p + ".dateInspected", "dateInspected", "date")}${field(p + ".certDate", "certDate", "date")}${field(p + ".issueDate", "issueDate", "date")}${field(p + ".expiryDate", "expiryDate", "date")}</div>
     <div class="field"><label>${bi(t("signature"), "Signature")}</label><div class="pad" data-pad="${p}.sig"><canvas data-sig="${p}.sig"></canvas><span>${esc(t("signHere"))}</span><button type="button" class="clr" data-clear="${p}.sig">${esc(t("clear"))}</button></div></div>
   </article>`;
 }
@@ -444,8 +444,8 @@ function harnessView() {
   return `
   <section class="card"><h2>${esc(t("details"))}</h2><div class="fields">
     ${field("harness.header.project", "project")}${field("harness.header.projectNo", "projectNo")}
-    ${field("harness.header.location", "location")}${field("harness.header.drawingRef", "drawingRef", "text", "", true)}
-    ${field("harness.header.plantRef", "plantRef", "text", "", true)}${field("harness.header.date", "date", "date", `max="${todayISO()}"`)}
+    ${field("harness.header.location", "location")}${field("harness.header.drawingRef", "drawingRef")}
+    ${field("harness.header.plantRef", "plantRef")}${field("harness.header.date", "date", "date", `max="${todayISO()}"`)}
   </div></section>
   <span class="howto">${esc(t("howTo"))}</span>
   <div id="hlist" style="display:flex;flex-direction:column;gap:12px">${h.rows.map(harnessCard).join("")}</div>
@@ -473,13 +473,14 @@ function missing(form) {
     }
   } else {
     const h = S.harness; 
-    // required: project, project no, location, date; drawing and plant refs are optional
-    for (const k of ["project", "projectNo", "location", "date"]) req(filled("harness.header." + k), `[data-bind="harness.header.${k}"]`);
+    // required: every sheet detail
+    for (const k of ["project", "projectNo", "location", "drawingRef", "plantRef", "date"]) req(filled("harness.header." + k), `[data-bind="harness.header.${k}"]`);
     for (const r of h.rows) {
       const p = "harness.rows." + r.id;
       req(r.pid && PM()[r.pid], `[data-pick="${p}.pid"]`);
-      // asset no, serial numbers and the four dates are optional; who wore it, the 9 checks and the signature are required
-      for (const c of H_CHECKS) { req(r.checks[c.k], `[data-hk="${r.id}_${c.k}"]`); if (r.checks[c.k] === "F") flag = true; }
+      // required: who wore it, the 9 checks, the four dates and the signature. Asset and serial numbers are optional.
+      for (const c of H_CHECKS) { req(r.checks[c.k], `[data-hk="${r.id}_${c.k}"]`); }
+      for (const k of ["dateInspected", "certDate", "issueDate", "expiryDate"]) req(r[k], `[data-bind="${p}.${k}"]`);
       req(r.sig, `[data-pad="${p}.sig"]`);
     }
   }

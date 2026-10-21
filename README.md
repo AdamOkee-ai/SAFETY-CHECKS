@@ -4,7 +4,7 @@ OKEE's daily MEWP inspection and harness check app, with a site tracker for supe
 
 - **Site staff** open the link and pick their name from the site list. If their name is missing they can add it, and it's flagged for a supervisor to check. They don't need an account.
 - **MEWP Daily Inspection:** one report per machine per day. All 33 checks, a note for every failed check, both sign-offs (name, title, signature) and the sheet details must be done before the PDF can be created. Comments are required when a check fails.
-- **Harness Inspection Register:** one card per harness. All the sheet details, the wearer, all 9 checks, the four dates and the signature are required. The asset and serial numbers and the comments are optional.
+- **Harness Inspection Register:** one card per harness. All the sheet details, the wearer, the four dates and the signature are required. The 9 tickboxes, the asset and serial numbers and the comments are optional.
 - **Every submitted report** creates a PDF, is uploaded to SharePoint (when the flow is set up) and is recorded on the site tracker.
 - **Supervisors** sign in to see the tracker. For each day it shows how many people have done their harness check and how many MEWPs have been inspected, who and what is still missing, and a 14-day history. From the tracker they can download any report or the day's status as a CSV.
 

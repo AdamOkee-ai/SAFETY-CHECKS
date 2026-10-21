@@ -478,8 +478,7 @@ function missing(form) {
     for (const r of h.rows) {
       const p = "harness.rows." + r.id;
       req(r.pid && PM()[r.pid], `[data-pick="${p}.pid"]`);
-      // required: who wore it, the 9 checks, the four dates and the signature. Asset and serial numbers are optional.
-      for (const c of H_CHECKS) { req(r.checks[c.k], `[data-hk="${r.id}_${c.k}"]`); }
+      // required: who wore it, the four dates and the signature. The 9 checks, asset and serial numbers are optional.
       for (const k of ["dateInspected", "certDate", "issueDate", "expiryDate"]) req(r[k], `[data-bind="${p}.${k}"]`);
       req(r.sig, `[data-pad="${p}.sig"]`);
     }
